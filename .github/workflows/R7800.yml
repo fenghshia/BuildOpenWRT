@@ -1,0 +1,185 @@
+name: Build R7800 OpenWrt
+
+on:
+  push:
+    branches:
+       - 'master'
+  workflow_dispatch:
+    inputs:
+      logLevel:
+        description: 'Log level'
+        required: true
+        default: 'warning'
+        type: choice
+        options:
+        - info
+        - warning
+        - debug
+
+env:
+  REPO_URL: https://github.com/openwrt/openwrt
+  REPO_BRANCH: openwrt-23.05
+  # REPO_BRANCH: master
+
+jobs:
+  build:
+    runs-on: ubuntu-20.04
+
+    steps:
+    - name: Maximize Build Space
+      uses: easimon/maximize-build-space@master
+      with:
+        remove-android: 'true'
+        remove-dotnet: 'true'
+        remove-haskell: 'true'
+
+    - name: Initialization Environment
+      run: |
+        sudo apt -y update
+        sudo apt install -y ack antlr3 aria2 asciidoc autoconf automake autopoint binutils bison build-essential bzip2 ccache cmake cpio curl device-tree-compiler fastjar flex gawk gettext gcc-multilib g++-multilib git gperf haveged help2man intltool libc6-dev-i386 libelf-dev libglib2.0-dev libgmp3-dev libltdl-dev libmpc-dev libmpfr-dev libncurses5-dev libncursesw5-dev libreadline-dev libssl-dev libtool lrzsz mkisofs msmtp nano ninja-build p7zip p7zip-full patch pkgconf python2.7 python3 python3-pip libpython3-dev qemu-utils rsync scons squashfs-tools subversion swig texinfo uglifyjs upx-ucl unzip vim wget xmlto xxd zlib1g-dev netcat
+
+    - name: Check Space Init
+      run: |
+        echo "INIT_BUILD_SPACE=$(df -h | tail -1 | awk '{print $4}')" >> $GITHUB_ENV
+        echo "MOUNT_DIR=$(df -h | tail -1 | awk '{print $6}')" >> $GITHUB_ENV
+  
+    - name: Telegram Notify 0
+      uses: appleboy/telegram-action@master
+      with:
+        token: ${{ secrets.TELTOKEN }}
+        to: ${{ secrets.TELCHATID }}
+        message: We have ${{ env.INIT_BUILD_SPACE }} build space mount on ${{ env.MOUNT_DIR }} in actions machine.
+
+    - name: Clone Openwrt Code
+      working-directory: ${{ env.MOUNT_DIR }}
+      run: |
+        echo "拉取openwrt源码"
+        git clone $REPO_URL -b $REPO_BRANCH openwrt
+
+    - name: Add Additional Feeds
+      working-directory: ${{ env.MOUNT_DIR }}
+      run: |
+        cd openwrt
+        echo 'src-git kenzo https://github.com/kenzok8/openwrt-packages' >> feeds.conf.default
+        echo 'src-git small https://github.com/kenzok8/small' >> feeds.conf.default
+        ./scripts/feeds update -a
+        ./scripts/feeds install -a
+
+#    - name: Add Additional Application
+#      working-directory: ${{ env.MOUNT_DIR }}
+#      run: |
+#        git clone https://github.com/coolsnowwolf/gargoyle.git gargoyle
+#        cp -r gargoyle/package/addon/lean/luci-app-adbyby-plus/ openwrt/feeds/luci/applications/
+#        cp -r gargoyle/package/addon/lean/adbyby/ openwrt/package/
+#        cp -r gargoyle/package/addon/lean/luci-app-zerotier/ openwrt/feeds/luci/applications/
+#        git clone https://github.com/ghosthgytop/luci-app-npc.git openwrt/package/luci-app-npc/
+#        git clone https://github.com/ghosthgytop/npc.git openwrt/package/npc/
+#        git clone https://github.com/sbwml/luci-app-alist.git openwrt/package/alist
+
+    - name: Load My Configuration
+      working-directory: ${{ env.MOUNT_DIR }}
+      run: |
+        cp .config openwrt/
+        cd openwrt
+        make download -j8
+  
+    - name: Telegram Notify 1
+      uses: appleboy/telegram-action@master
+      with:
+        token: ${{ secrets.TELTOKEN }}
+        to: ${{ secrets.TELCHATID }}
+        message: Prepare environment complete, start build image.
+
+    - name: Start Upstream Build Log
+      working-directory: ${{ env.MOUNT_DIR }}
+      run: |
+        touch build.log
+        nohup tail -f build.log | nc seashells.io 1337 > server.log 2>&1 &
+        sleep 5s
+        echo "SEASHELLS_URL=$(head -1 server.log | awk '{print $NF}')" >> $GITHUB_ENV
+  
+    - name: Telegram Notify 2
+      uses: appleboy/telegram-action@master
+      with:
+        token: ${{ secrets.TELTOKEN }}
+        to: ${{ secrets.TELCHATID }}
+        message:  |
+          The online log link : 
+          ${{ env.SEASHELLS_URL }}.
+          And monitor set on, when build finish it well notify you. 
+
+    - name: Build My Openwrt Image
+      id: build
+      working-directory: ${{ env.MOUNT_DIR }}
+      run: |
+        cd openwrt
+        make -j$(nproc) V=s >> build.log
+
+    - name: Organize files
+      run: |
+        cd openwrt/bin/targets/*/*
+        rm -rf packages
+
+    - name: Telegram Notify 3
+      uses: appleboy/telegram-action@master
+      with:
+        token: ${{ secrets.TELTOKEN }}
+        to: ${{ secrets.TELCHATID }}
+        document: openwrt/bin/targets/*/*/*
+
+    # - name: Compile the firmware
+    #   id: compile
+    #   run: |
+    #     cd openwrt
+    #     echo "调用线程数: $(nproc)"
+    #     make -j$(nproc) V=s
+    #     echo "build 成功"
+    #     grep '^CONFIG_TARGET.*DEVICE.*=y' .config | sed -r 's/.*DEVICE_(.*)=y/\1/' > DEVICE_NAME
+    #     [ -s DEVICE_NAME ] && echo "DEVICE_NAME=_$(cat DEVICE_NAME)" >> $GITHUB_ENV
+    #     echo "FILE_DATE=_$(date +"%Y%m%d%H%M")" >> $GITHUB_ENV
+
+    # - name: Check space usage
+    #   run: |
+    #     echo "查看可用空间"
+    #     df -hT $PWD
+
+    # - name: Organize files
+    #   id: organize
+    #   if: env.UPLOAD_FIRMWARE == 'true' && !cancelled()
+    #   run: |
+    #     cd openwrt/bin/targets/*/*
+    #     rm -rf packages
+    #     echo "FIRMWARE=$PWD" >> $GITHUB_ENV
+    #     echo "::set-output name=status::success"
+
+    # - name: Upload firmware directory
+    #   uses: actions/upload-artifact@main
+    #   if: steps.organize.outputs.status == 'success' && !cancelled()
+    #   with:
+    #     name: OpenWrt_firmware${{ env.DEVICE_NAME }}${{ env.FILE_DATE }}
+    #     path: ${{ env.FIRMWARE }}
+
+    # - name: Generate release tag
+    #   id: tag
+    #   if: env.UPLOAD_RELEASE == 'true' && !cancelled()
+    #   run: |
+    #     echo "::set-output name=release_tag::$(date +"%Y.%m.%d-%H%M")"
+    #     touch release.txt
+    #     echo "::set-output name=release_tag::$(date +"%Y.%m.%d-%H%M")" >> release.txt
+    #     echo "::set-output name=status::success"
+
+    # - name: Upload firmware to release
+    #   uses: softprops/action-gh-release@v1
+    #   if: steps.tag.outputs.status == 'success' && !cancelled()
+    #   env:
+    #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    #   with:
+    #     tag_name: ${{ steps.tag.outputs.release_tag }}
+    #     body_path: release.txt
+    #     files: ${{ env.FIRMWARE }}/*
+
+    # - name: Delete workflow runs
+    #   uses: GitRML/delete-workflow-runs@main
+    #   with:
+    #     retain_days: 1
+    #     keep_minimum_runs: 3
