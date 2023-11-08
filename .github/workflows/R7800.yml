@@ -70,10 +70,10 @@ jobs:
         ./scripts/feeds update -a
         ./scripts/feeds install -a
 
-    - name: Add Additional Application
-      working-directory: ${{ env.MOUNT_DIR }}
-      run: |
-        git clone https://github.com/peter-tank/luci-app-flowoffload.git openwrt/package/luci-app-flowoffload
+#    - name: Add Additional Application
+#      working-directory: ${{ env.MOUNT_DIR }}
+#      run: |
+#        git clone https://github.com/peter-tank/luci-app-flowoffload.git openwrt/package/luci-app-flowoffload
 #        git clone https://github.com/coolsnowwolf/gargoyle.git gargoyle
 #        cp -r gargoyle/package/addon/lean/luci-app-adbyby-plus/ openwrt/feeds/luci/applications/
 #        cp -r gargoyle/package/addon/lean/adbyby/ openwrt/package/
@@ -133,7 +133,7 @@ jobs:
       with:
         token: ${{ secrets.TELTOKEN }}
         to: ${{ secrets.TELCHATID }}
-        document: ${{ env.MOUNT_DIR }}/openwrt/bin/targets/*/*/*
+        document: ${{ env.MOUNT_DIR }}/openwrt/bin/targets/*/*/*.img
 
     # - name: Compile the firmware
     #   id: compile
