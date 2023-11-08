@@ -70,9 +70,10 @@ jobs:
         ./scripts/feeds update -a
         ./scripts/feeds install -a
 
-#    - name: Add Additional Application
-#      working-directory: ${{ env.MOUNT_DIR }}
-#      run: |
+    - name: Add Additional Application
+      working-directory: ${{ env.MOUNT_DIR }}
+      run: |
+        git clone https://github.com/peter-tank/luci-app-flowoffload.git openwrt/package/luci-app-flowoffload
 #        git clone https://github.com/coolsnowwolf/gargoyle.git gargoyle
 #        cp -r gargoyle/package/addon/lean/luci-app-adbyby-plus/ openwrt/feeds/luci/applications/
 #        cp -r gargoyle/package/addon/lean/adbyby/ openwrt/package/
@@ -80,6 +81,7 @@ jobs:
 #        git clone https://github.com/ghosthgytop/luci-app-npc.git openwrt/package/luci-app-npc/
 #        git clone https://github.com/ghosthgytop/npc.git openwrt/package/npc/
 #        git clone https://github.com/sbwml/luci-app-alist.git openwrt/package/alist
+
 
     - name: Load My Configuration
       working-directory: ${{ env.MOUNT_DIR }}
@@ -121,6 +123,7 @@ jobs:
         make -j$(nproc) V=s >> ../build.log
 
     - name: Organize files
+      working-directory: ${{ env.MOUNT_DIR }}
       run: |
         cd openwrt/bin/targets/*/*
         rm -rf packages
@@ -130,7 +133,7 @@ jobs:
       with:
         token: ${{ secrets.TELTOKEN }}
         to: ${{ secrets.TELCHATID }}
-        document: openwrt/bin/targets/*/*/*
+        document: ${{ env.MOUNT_DIR }}/openwrt/bin/targets/*/*/*
 
     # - name: Compile the firmware
     #   id: compile
