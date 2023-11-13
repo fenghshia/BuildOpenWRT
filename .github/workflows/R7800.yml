@@ -70,9 +70,12 @@ jobs:
         ./scripts/feeds update -a
         ./scripts/feeds install -a
 
-#    - name: Add Additional Application
-#      working-directory: ${{ env.MOUNT_DIR }}
-#      run: |
+    - name: Add Additional Application
+      working-directory: ${{ env.MOUNT_DIR }}
+      run: |
+        git clone https://github.com/rufengsuixing/luci-app-zerotier.git openwrt/package/luci-app-zerotier
+        unzip OpenClash-master.zip
+        cp -r OpenClash-master/luci-app-openclash/ openwrt/package/luci-app-openclash/
 #        git clone https://github.com/coolsnowwolf/gargoyle.git gargoyle
 #        cp -r gargoyle/package/addon/lean/luci-app-zerotier/ openwrt/package/
 #        cp -r gargoyle/package/addon/lean/luci-app-adbyby-plus/ openwrt/feeds/luci/applications/
@@ -80,7 +83,6 @@ jobs:
 #        git clone https://github.com/ghosthgytop/luci-app-npc.git openwrt/package/luci-app-npc/
 #        git clone https://github.com/ghosthgytop/npc.git openwrt/package/npc/
 #        git clone https://github.com/sbwml/luci-app-alist.git openwrt/package/alist
-#        git clone https://github.com/peter-tank/luci-app-flowoffload.git openwrt/package/luci-app-flowoffload
 
     - name: Load My Configuration
       working-directory: ${{ env.MOUNT_DIR }}
@@ -125,6 +127,7 @@ jobs:
       working-directory: ${{ env.MOUNT_DIR }}
       run: |
         cd openwrt/bin/targets/*/*
+        tar -zcvf packages.tar.gz packages
         rm -rf packages
 
     - name: Telegram Notify 3
@@ -132,7 +135,24 @@ jobs:
       with:
         token: ${{ secrets.TELTOKEN }}
         to: ${{ secrets.TELCHATID }}
+        message:  image file
         document: ${{ env.MOUNT_DIR }}/openwrt/bin/targets/*/*/*.img
+
+    - name: Telegram Notify 4
+      uses: appleboy/telegram-action@master
+      with:
+        token: ${{ secrets.TELTOKEN }}
+        to: ${{ secrets.TELCHATID }}
+        message:  bin file
+        document: ${{ env.MOUNT_DIR }}/openwrt/bin/targets/*/*/*.bin
+
+    - name: Telegram Notify 5
+      uses: appleboy/telegram-action@master
+      with:
+        token: ${{ secrets.TELTOKEN }}
+        to: ${{ secrets.TELCHATID }}
+        message:  ipk files
+        document: ${{ env.MOUNT_DIR }}/openwrt/bin/targets/*/*/packages.tar.gz
 
     # - name: Compile the firmware
     #   id: compile
