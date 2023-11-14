@@ -128,7 +128,7 @@ jobs:
       run: |
         cd openwrt/bin/targets/*/*
         tar -zcvf packages.tar.gz packages
-        rm -rf packages
+#        rm -rf packages
 
     - name: Telegram Notify 3
       uses: appleboy/telegram-action@master
