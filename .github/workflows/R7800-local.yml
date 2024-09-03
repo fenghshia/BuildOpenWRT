@@ -128,13 +128,21 @@ jobs:
       run: |
         tar -zcvf openwrt.tar.gz openwrt
 
-    - name: Telegram Notify 3
-      uses: appleboy/telegram-action@master
+    - name: Upload firmware to release
+      uses: softprops/action-gh-release@master
+      env:
+        GITHUB_TOKEN: ${{ secrets.TOKEN }}
       with:
-        token: ${{ secrets.TELTOKEN }}
-        to: ${{ secrets.TELCHATID }}
-        message:  image file
-        document: ${{ env.MOUNT_DIR }}/openwrt.tar.gz
+        tag_name: test
+        files: ${{ env.MOUNT_DIR }}/openwrt.tar.gz
+
+    # - name: Telegram Notify 3
+    #   uses: appleboy/telegram-action@master
+    #   with:
+    #     token: ${{ secrets.TELTOKEN }}
+    #     to: ${{ secrets.TELCHATID }}
+    #     message:  image file
+    #     document: ${{ env.MOUNT_DIR }}/openwrt.tar.gz
 
     # - name: Telegram Notify 4
     #   uses: appleboy/telegram-action@master
